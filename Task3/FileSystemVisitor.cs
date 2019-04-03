@@ -1,124 +1,118 @@
 ﻿using System;
-using System.CodeDom;
-using System.Collections;
 using System.Collections.Generic;
-using System.DirectoryServices.Protocols;
 using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
 using Task3.EventArgs;
 
 namespace Task3
 {
-    class FileSystemVisitor/*: IEnumerable<FileSystemInfo>*/
+    class FileSystemVisitor
     {
-        private readonly DirectoryInfo _startDirectoryInfo;
         private readonly Func<FileSystemInfo, bool> _filter;
 
-        public bool IsStopped { get; set; }
-        public bool IsExcluded { get; set; }
-
-        public FileSystemVisitor(DirectoryInfo startDirectoryInfo)
+        public FileSystemVisitor()
         {
-            _startDirectoryInfo = startDirectoryInfo;
-            IsStopped = false;
-            IsExcluded = false;
         }
 
-        public FileSystemVisitor(DirectoryInfo startDirectoryInfo, Func<FileSystemInfo, bool> filter) : this (startDirectoryInfo)
+        public FileSystemVisitor(Func<FileSystemInfo, bool> filter) : this ()
         {
             _filter = filter;
         }
 
-        public IEnumerable<FileSystemInfo> GetFileSystemInfoSequence()
+        public IEnumerable<FileSystemInfo> GetFileSystemInfoSequence(DirectoryInfo startDirectoryInfo)
         {
-            if(!_startDirectoryInfo.Exists)
+            if(!startDirectoryInfo.Exists)
                 throw new DirectoryNotFoundException();
 
-            Start?.Invoke(this, new StartEventArgs("Start search"));
+            Start?.Invoke(this, new StartEventArgs());
 
-            foreach (var item in GetSequence(_startDirectoryInfo))
+            foreach (var item in GetSequence(startDirectoryInfo))
             {
                 yield return item;
             }
 
-            Finish?.Invoke(this, new FinishEventArgs("Finish search"));
+            Finish?.Invoke(this, new FinishEventArgs());
         }
 
         private IEnumerable<FileSystemInfo> GetSequence(DirectoryInfo itemDirectoryInfo)
         {
-            var fileSystemInfos = itemDirectoryInfo.EnumerateFileSystemInfos(); //TODO: Message if directory is empty
+            var fileSystemInfos = itemDirectoryInfo.EnumerateFileSystemInfos();
 
             foreach (var fileSystemInfo in fileSystemInfos)
             {
                 if (fileSystemInfo is FileInfo fileInfo)
                 {
-                    if (Filter(fileInfo))            
-                        yield return fileInfo;                        
+                    switch (VisitFile(fileInfo))
+                    {
+                        case Action.Next:
+                            yield return fileSystemInfo;
+                            break;
+                        case Action.Exclude:
+                            continue;
+                        case Action.StopSearch:
+                            yield break;
+                    }
                 }
-
+                                                                     
                 if (fileSystemInfo is DirectoryInfo directoryInfo)
                 {
-                    if (Filter(directoryInfo))
-                        yield return directoryInfo;
-                        
                     foreach (var item in GetSequence(directoryInfo))
                     {
                         yield return item;
                     }
+
+                    switch (VisitDirectory(directoryInfo))
+                    {            
+                        case Action.Next:
+                            yield return fileSystemInfo;
+                            break;
+                        case Action.Exclude:
+                            continue;
+                        case Action.StopSearch:
+                            yield break;
+                    }
                 }
-
-                if (IsStopped)
-                    yield break;
             }
         }
 
-        private bool Filter<T>(T info) where T: FileSystemInfo
+        private Action VisitFile(FileInfo fileInfo)
         {
-            if (typeof(T) == typeof(DirectoryInfo))
-                DirectoryFinded?.Invoke(this, new FindedEventArgs<DirectoryInfo>(info));
-
-            if (typeof(T) == typeof(FileInfo))
-                FileFinded?.Invoke(this, new FindedEventArgs<FileInfo>(info));
-
-            var result = _filter?.Invoke(info) ?? true;
-
-            if (result)
-            {
-                if (typeof(T) == typeof(DirectoryInfo))
-                    FilteredDirectoryFinded?.Invoke(this, new FindedEventArgs<DirectoryInfo>(info));
-
-                if (typeof(T) == typeof(FileInfo))
-                    FilteredFileFinded?.Invoke(this, new FindedEventArgs<FileInfo>(info));
-
-                result = !IsExcluded;
-            }
-
-            return result;
+            return Visit(fileInfo, FileFound, FilteredFileFound, _filter);
         }
 
-        //private bool Filter(DirectoryInfo directoryInfo)
-        //{
-        //    DirectoryFinded?.Invoke(this, new FindedEventArgs<DirectoryInfo>(directoryInfo));
+        private Action VisitDirectory(DirectoryInfo directoryInfo)
+        {
+            return Visit(directoryInfo, DirectoryFound, FilteredDirectoryFound, _filter);
+        }
 
-        //    var result = _filter?.Invoke(directoryInfo) ?? true;
+        public Action Visit<T>(T fileSystemInfo, EventHandler<FindedEventArgs<T>> itemFound, EventHandler<FindedEventArgs<T>> filteredItemFound, Func<FileSystemInfo, bool> filter) where T : FileSystemInfo
+        {
+            var e = new FindedEventArgs<T>(fileSystemInfo);
 
-        //    if (result)
-        //    {
-        //        FilteredDirectoryFinded?.Invoke(this, new FindedEventArgs<DirectoryInfo>(directoryInfo));
-        //    }
+            if (itemFound != null)
+            {
+                itemFound.Invoke(fileSystemInfo, e);
+                if (e.Action == Action.Exclude || e.Action == Action.StopSearch)
+                    return e.Action;
+            }
 
-        //    return result;
-        //}
+            if (!(filter?.Invoke(fileSystemInfo) ?? true))
+                return Action.Exclude;
+
+            if (filter != null && filteredItemFound != null)
+            {
+                filteredItemFound.Invoke(fileSystemInfo, e);
+                if (e.Action == Action.Exclude || e.Action == Action.StopSearch)
+                    return e.Action;
+            }
+
+            return Action.Next;
+        }
 
         public event EventHandler<StartEventArgs> Start;
         public event EventHandler<FinishEventArgs> Finish;
-        public event EventHandler<FindedEventArgs<FileInfo>> FileFinded;
-        public event EventHandler<FindedEventArgs<DirectoryInfo>> DirectoryFinded;
-        public event EventHandler<FindedEventArgs<FileInfo>> FilteredFileFinded;
-        public event EventHandler<FindedEventArgs<DirectoryInfo>> FilteredDirectoryFinded;
+        public event EventHandler<FindedEventArgs<FileInfo>> FileFound;
+        public event EventHandler<FindedEventArgs<DirectoryInfo>> DirectoryFound;
+        public event EventHandler<FindedEventArgs<FileInfo>> FilteredFileFound;
+        public event EventHandler<FindedEventArgs<DirectoryInfo>> FilteredDirectoryFound;
     }
 }

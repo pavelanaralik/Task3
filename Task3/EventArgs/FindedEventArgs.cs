@@ -1,26 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO;
 
 namespace Task3.EventArgs
 {
     public class FindedEventArgs<T>: System.EventArgs where T: FileSystemInfo
     {
-        public string Message { get; }
+        public Action Action { get; set; }
+        public FileSystemInfo Info { get; set; }
 
-        public FindedEventArgs(FileSystemInfo fileSystemInfo)
+        public FindedEventArgs(FileSystemInfo info)
         {
-            if (typeof(T) == typeof(DirectoryInfo))
-            {
-                Message = $"Directory \"{fileSystemInfo.Name}\" was found.";
-            }
-            if (typeof(T) == typeof(FileInfo))
-            {
-                Message = $"File \"{fileSystemInfo.Name}\" was found.";
-            }
+            Action = Action.Next;
+            Info = info;
         }
     }
 }

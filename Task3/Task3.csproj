@@ -48,6 +48,8 @@
     <Compile Include="EventArgs\FindedEventArgs.cs" />
     <Compile Include="EventArgs\FinishEventArgs.cs" />
     <Compile Include="EventArgs\StartEventArgs.cs" />
+    <Compile Include="IFileSystemFilter.cs" />
+    <Compile Include="FileSystemFilter.cs.cs" />
     <Compile Include="FileSystemVisitor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

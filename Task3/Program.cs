@@ -16,14 +16,14 @@ namespace Task3
             Regex regex = new Regex($"^{str}");
             var directory = new DirectoryInfo("C:\\Users\\Pavel_Anaralik\\Downloads");
             //var directory = new DirectoryInfo("C:\\Users\\Pavel_Anaralik\\Downloads\\signature_epam_com\\3");
-            var fileSystemVisitor = new FileSystemVisitor(/*fileSystemInfo => regex.IsMatch(fileSystemInfo.Name)*/);
+            var fileSystemVisitor = new FileSystemVisitor(fileSystemInfo => regex.IsMatch(fileSystemInfo.Name));
 
             fileSystemVisitor.Start += (s, e) => { Console.WriteLine("Start search"); Console.WriteLine(); };
             fileSystemVisitor.Finish += (s, e) => { Console.WriteLine();  Console.WriteLine("Finish search");};
-            //fileSystemVisitor.FileFound += (s, e) => { Act(e, $"File \"{e.Info.Name}\" found."); };
-            //fileSystemVisitor.DirectoryFound += (s, e) => { Act(e, $"Directory \"{e.Info.Name}\" found."); };
-            //fileSystemVisitor.FilteredFileFound += (s, e) => { Act(e, $"Filtered file \"{e.Info.Name}\" found."); };
-            //fileSystemVisitor.FilteredDirectoryFound += (s, e) => { Act(e, $"Filtered directory \"{e.Info.Name}\" found."); };
+            fileSystemVisitor.FileFound += (s, e) => { Act(e, $"File \"{e.Info.Name}\" found."); };
+            fileSystemVisitor.DirectoryFound += (s, e) => { Act(e, $"Directory \"{e.Info.Name}\" found."); };
+            fileSystemVisitor.FilteredFileFound += (s, e) => { Act(e, $"Filtered file \"{e.Info.Name}\" found."); };
+            fileSystemVisitor.FilteredDirectoryFound += (s, e) => { Act(e, $"Filtered directory \"{e.Info.Name}\" found."); };
 
             try
             {

@@ -5,9 +5,10 @@ using Task3.EventArgs;
 
 namespace Task3
 {
-    class FileSystemVisitor
+    public class FileSystemVisitor
     {
         private readonly Func<FileSystemInfo, bool> _filter;
+        private readonly IFileSystemFilter _fileSystemFilter = new FileSystemFilter();
 
         public FileSystemVisitor()
         {
@@ -41,7 +42,7 @@ namespace Task3
             {
                 if (fileSystemInfo is FileInfo fileInfo)
                 {
-                    switch (VisitFile(fileInfo))
+                    switch (FilterOutFile(fileInfo))
                     {
                         case Action.Next:
                             yield return fileSystemInfo;
@@ -60,7 +61,7 @@ namespace Task3
                         yield return item;
                     }
 
-                    switch (VisitDirectory(directoryInfo))
+                    switch (FilterOutDirectory(directoryInfo))
                     {            
                         case Action.Next:
                             yield return fileSystemInfo;
@@ -74,40 +75,16 @@ namespace Task3
             }
         }
 
-        private Action VisitFile(FileInfo fileInfo)
+        private Action FilterOutFile(FileInfo fileInfo)
         {
-            return Visit(fileInfo, FileFound, FilteredFileFound, _filter);
+            return _fileSystemFilter.FilterOut(fileInfo, FileFound, FilteredFileFound, _filter);
         }
 
-        private Action VisitDirectory(DirectoryInfo directoryInfo)
+        private Action FilterOutDirectory(DirectoryInfo directoryInfo)
         {
-            return Visit(directoryInfo, DirectoryFound, FilteredDirectoryFound, _filter);
+            return _fileSystemFilter.FilterOut(directoryInfo, DirectoryFound, FilteredDirectoryFound, _filter);
         }
-
-        public Action Visit<T>(T fileSystemInfo, EventHandler<FindedEventArgs<T>> itemFound, EventHandler<FindedEventArgs<T>> filteredItemFound, Func<FileSystemInfo, bool> filter) where T : FileSystemInfo
-        {
-            var e = new FindedEventArgs<T>(fileSystemInfo);
-
-            if (itemFound != null)
-            {
-                itemFound.Invoke(fileSystemInfo, e);
-                if (e.Action == Action.Exclude || e.Action == Action.StopSearch)
-                    return e.Action;
-            }
-
-            if (!(filter?.Invoke(fileSystemInfo) ?? true))
-                return Action.Exclude;
-
-            if (filter != null && filteredItemFound != null)
-            {
-                filteredItemFound.Invoke(fileSystemInfo, e);
-                if (e.Action == Action.Exclude || e.Action == Action.StopSearch)
-                    return e.Action;
-            }
-
-            return Action.Next;
-        }
-
+       
         public event EventHandler<StartEventArgs> Start;
         public event EventHandler<FinishEventArgs> Finish;
         public event EventHandler<FindedEventArgs<FileInfo>> FileFound;
